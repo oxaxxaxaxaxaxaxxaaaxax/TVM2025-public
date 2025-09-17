@@ -12,10 +12,15 @@ export class SyntaxError extends Error
 
 function parse(content: string): MatchResult
 {
-    throw "Not implemented";
+    const m = grammar.match(content);
+    if (m.succeeded()) {
+        return m;
+    }else{
+        throw new SyntaxError();
+    }
 }
 
 function calculate(expression: MatchResult):number
 {
-    throw "Not implemented"
+    return addMulSemantics(expression).calculate();
 }
