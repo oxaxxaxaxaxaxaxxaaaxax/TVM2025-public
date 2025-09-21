@@ -1,3 +1,9 @@
 ReversePolishNotation {
-    // write rules here
+    Exp
+    = Exp Exp "+" -- plus
+    | Exp Exp "*" -- times
+    | number
+
+    number
+    =  digit+             -- whole
 }
