@@ -21,11 +21,8 @@ const addMulCalc = {
         return arg1.calculate();
     },
     number(arg0: any){
-        return arg0.calculate();
-    },
-    number_whole(arg0: any) {
         return parseInt(this.sourceString, 10);
-    }
+    },
 } satisfies AddMulActionDict<number>
 
 addMulSemantics.addOperation<Number>("calculate()", addMulCalc);

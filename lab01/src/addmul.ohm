@@ -12,5 +12,5 @@ AddMul {
     | number
 
     number
-    =  digit+             -- whole
+    =  digit+
 }
