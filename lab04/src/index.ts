@@ -6,3 +6,4 @@ export * from "./ast";
 export * from "./parser";
 
 export const parseAndPrint = (source: string): string => printExpr(parseExpr(source));
+

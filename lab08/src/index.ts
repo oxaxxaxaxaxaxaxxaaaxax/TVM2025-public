@@ -1,4 +1,3 @@
-
 export class FunnyError extends Error {
     constructor(
         message: string,
