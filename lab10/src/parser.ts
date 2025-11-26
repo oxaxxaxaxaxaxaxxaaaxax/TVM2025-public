@@ -219,4 +219,5 @@ export function parseFunnier(source: string, origin?: string): AnnotatedModule {
 
   const mod = semantics(match).parse() as AnnotatedModule;
   return mod;
+  
 }
