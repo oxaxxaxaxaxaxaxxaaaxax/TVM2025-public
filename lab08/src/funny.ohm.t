@@ -9,7 +9,9 @@ Funny <: Arithmetic {
         Statement
 
     ParamList = ParameterDef ("," ParameterDef)*
-    ReturnList = ReturnParamDef ("," ReturnParamDef)*
+
+    ReturnList = "void" --void
+    | ReturnParamDef ("," ReturnParamDef)* --params
 
     LocalParamDefList = LocalParamDef ("," LocalParamDef)*
 
@@ -19,7 +21,6 @@ Funny <: Arithmetic {
     ParamType = "int[]"  --array
         | "int"       --int
 
-    // локальные только int
     LocalParamDef = variable ":" "int"
 
     ReturnParamDef = variable ":" ParamType
@@ -29,7 +30,10 @@ Funny <: Arithmetic {
         | Conditional
         | Loop
         | Block
+        | CallStatement
 
+    CallStatement = FunctionCall 
+    ";"
 
     Assignment = ParamName "=" Expr ";"    --basic           
         | ArrayAccess "=" Expr ";"          --array
@@ -88,7 +92,12 @@ Funny <: Arithmetic {
         | Expr "<"  Expr
 
 
-    Predicate = OrPred
+    // Predicate = OrPred
+    Predicate = ImplicationPred
+
+    ImplicationPred
+    = OrPred "->" ImplicationPred  --impl
+    | OrPred                       --or
 
     OrPred = AndPred ("or" AndPred)* --or
 

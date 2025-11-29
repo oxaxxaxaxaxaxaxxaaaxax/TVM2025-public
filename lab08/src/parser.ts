@@ -237,7 +237,7 @@ export const getFunnyAst = {
       };
       return m;
   },
-  FunctionDef(name, _lp, paramsOpt, _rp, _returnsKw, returnList, usesOpt1, usesOpt2, body) {
+  FunctionDef(name, lp, paramsOpt, rp, returnsKw, returnList, usesOpt1, usesOpt2, body) {
       const funName = name.sourceString;
   
       const parameters: ast.ParameterDef[] =
@@ -274,7 +274,7 @@ export const getFunnyAst = {
     return [head, ...tail];
   },
 
-  ReturnList(first, _seps, restParams) {
+  ReturnList_params(first, _seps, restParams) {
     const head = first.parse() as ast.ParameterDef;
     const tailRaw = restParams.parse() as ast.ParameterDef | ast.ParameterDef[] | [];
     let tail: any[];
@@ -286,6 +286,11 @@ export const getFunnyAst = {
       tail = [];
     }
     return [head, ...tail];
+  },
+
+
+   ReturnList_void(voidTok) {
+    return [];
   },
 
   LocalParamDefList(first, _seps, restParams) {
@@ -336,6 +341,13 @@ export const getFunnyAst = {
   Statement(stmt) {
       return stmt.parse();
   },
+
+  CallStatement(callNode,_semi,) {
+    return {
+      type: "callStmt",
+      call: callNode.parse(),
+    };
+  },
   Assignment_basic(paramName, eq, exprNode, semicolon) {
       const lvalue = paramName.parse();
       const expr = exprNode.parse();
@@ -376,37 +388,18 @@ export const getFunnyAst = {
   },
   Conditional(ifTok, lp, condNode, rp, thenNode, elseNode, elseStmtOpt){
     
-      console.log('=== Conditional DEBUG ===');
-      console.log('sourceString:', this.sourceString);
-      console.log('=== Conditional DEBUG ===');
-      console.log('sourceString:', this.sourceString);
-      console.log(
-        'elseNode:',
-        'ctorName =', (elseNode as any).ctorName,
-        'children.length =', elseNode.children.length,
-      );
+  
+
       if (elseNode.children.length > 0) {
         const c0 = elseNode.children[0] as any;
-        console.log(
-          '  elseNode.children[0]: ctorName =', c0.ctorName,
-          'text =', c0.sourceString,
-          'children.length =', c0.children?.length,
-        );
+        
       }
-      console.log(
-        'elseNode2:',
-        'ctorName =', (elseStmtOpt as any).ctorName,
-        'children.length =', elseStmtOpt.children.length,
-      );
+      
       if (elseStmtOpt.children.length > 0) {
         const c0 = elseStmtOpt.children[0] as any;
-        console.log(
-          '  elseNode2.children[0]: ctorName =', c0.ctorName,
-          'text =', c0.sourceString,
-          'children.length =', c0.children?.length,
-        );
+        
       }
-      console.log('=== END Conditional DEBUG ===');
+      
 
       const condition = condNode.parse() as ast.Condition;
       const thenBranch = thenNode.parse() as ast.Statement;
@@ -414,7 +407,6 @@ export const getFunnyAst = {
       if (elseStmtOpt.children.length === 0) {
         elseBranch = undefined;
       } else {
-        // elseNode2.children[0] — это NonterminalNode "Statement"
         const elseStmtNode = elseStmtOpt.children[0] ;
         elseBranch = elseStmtNode.parse() as ast.Statement;
       }
@@ -461,7 +453,7 @@ export const getFunnyAst = {
   },
   ArgList(first, rest,rest2): ast.Expr[] {
       const head = first.parse() as ast.Expr;
-      const tail = rest.children.map(c => c.children[1].parse());
+      const tail = rest2.children.map(c => c.parse());
       return [head, ...tail];
   },
   Condition(expr) {
@@ -478,7 +470,7 @@ export const getFunnyAst = {
       return orNode.parse() as ast.Condition;
   },
   OrCond_or(first, rest,rest2) {
-      return rest.children.map(c => c.children[1].parse()).reduce(
+      return rest2.children.map(c => c.parse()).reduce(
           (acc, rhs, i) => ({
               type: "orCond",
               left: acc,
@@ -488,7 +480,7 @@ export const getFunnyAst = {
       );
   },
   AndCond_and(first, rest,rest2) {
-      return rest.children.map(c => c.children[1].parse()).reduce(
+      return rest2.children.map(c => c.parse()).reduce(
           (acc, rhs) => ({
               type: "andCond",
               left: acc,
@@ -533,10 +525,30 @@ export const getFunnyAst = {
       };
   },
   Predicate(node) {
-  return node.parse() as ast.Predicate;
+    return node.parse() as ast.Predicate;
   },
+
+  ImplicationPred_impl(left, arrow, right) {
+  const l = left.parse();   // Predicate
+  const r = right.parse();  // Predicate
+
+  // A -> B  ≡  (not A) or B
+  return {
+    type: "orPred",
+    left: {
+      type: "notPred",
+      expr: l,
+    },
+    right: r,
+  };
+},
+
+  ImplicationPred_or(expr) {
+    return expr.parse();
+  },
+
   OrPred_or(first, rest,rest2) {
-  return rest.children.map((pair) => pair.children[1].parse()).reduce(
+  return rest2.children.map((pair) => pair.parse()).reduce(
           (acc, rhs) => ({
               type: "orPred",
               left: acc,
@@ -546,7 +558,7 @@ export const getFunnyAst = {
       );
   },
   AndPred_and(first, rest,rest2) {
-  return rest.children.map((pair) => pair.children[1].parse()).reduce(
+  return rest2.children.map((pair) => pair.parse()).reduce(
           (acc, rhs) => ({
               type: "andPred",
               left: acc,

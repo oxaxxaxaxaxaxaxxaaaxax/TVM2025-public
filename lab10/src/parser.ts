@@ -1,44 +1,37 @@
-// lab10/src/parser.ts
+import {
+  MatchResult,
+  Semantics,
+  NonterminalNode,
+  TerminalNode,
+  IterationNode,
+} from 'ohm-js';
 
-import { MatchResult, Semantics } from 'ohm-js';
-
-import grammar from './funnier.ohm-bundle';
+import grammar, {FunnierActionDict} from './funnier.ohm-bundle';
 
 import {
   AnnotatedModule,
   Module as FunnierModule,
   FunctionDef as FunnierFunctionDef,
   FormulaDef as FunnierFormulaDef,
-  Statement as FunnierStatement,
-  Predicate as FunnierPredicate,
   FormulaRef as FunnierFormulaRef,
   LoopStmtWithInvariant,
 } from './funnier';
 
-// из ЛР8 — у тебя в lab08/src/parser.ts есть `export const getFunnyAst = { ... }`
-import { getFunnyAst } from 'lab08/src';
+import { getFunnyAst } from '../../lab08/src/parser';
 
-// ----------------- Семантика Funnier -----------------
-
-// НЕ типизируем FunnierActionDict, чтобы TS не ругался на имена ключей.
-// Делаем просто `any`.
-const getFunnierAst: any = {
-  // всё старое из Funny
+const getFunnierAst : FunnierActionDict <any>= {
   ...getFunnyAst,
 
-  // Модуль: теперь функции + формулы
-  Module(defs: any) {
+  Module(defs: IterationNode) {
     const functions: FunnierFunctionDef[] = [];
     const formulas: FunnierFormulaDef[] = [];
 
-    for (const d of defs.children) {
-      const node = d.parse() as any;
+    for (const child of defs.children) {
+      const node = child.parse();
       if (node.type === 'function') {
-        functions.push(node as FunnierFunctionDef);
-      } else if (node.type === 'formula') {
-        formulas.push(node as FunnierFormulaDef);
+        functions.push(node);
       } else {
-        throw new Error(`Unexpected top-level node type: ${node.type}`);
+        formulas.push(node);
       }
     }
 
@@ -50,156 +43,70 @@ const getFunnierAst: any = {
     return m;
   },
 
-  // FormulaDef =
-  //   variable "(" ParamList? ")" "=>" Predicate ";"
-  FormulaDef(name: any, _lp: any, paramsOpt: any, _rp: any, _arrow: any, bodyNode: any, _semi: any) {
-    const funName = name.sourceString;
-
-    const parameters =
-      paramsOpt.children.length === 0
-        ? []
-        : (paramsOpt.parse() as FunnierFormulaDef['parameters']);
-
-    const body = bodyNode.parse() as FunnierPredicate;
-
+  FormulaDef(name: NonterminalNode,lp: TerminalNode,paramsIter: IterationNode,rp: TerminalNode,arrow: TerminalNode,bodyNode: NonterminalNode,semi: TerminalNode,) {
+    const parameters = paramsIter.children.length === 0 ? [] : paramsIter.parse();
     const f: FunnierFormulaDef = {
       type: 'formula',
-      name: funName,
-      parameters,
-      body,
+      name: name.sourceString,
+      parameters: parameters,
+      body: bodyNode.parse(),
     };
     return f;
   },
 
-  // FunctionDef :=
-  //   variable "(" ParamList? ")"
-  //   ("requires" Predicate)?
-  //   "returns" ReturnList
-  //   ("ensures" Predicate)?
-  //   ("uses" LocalParamDefList)?
-  //   Statement
-  FunctionDef(
-    name: any,
-    _lp: any,
-    paramsOpt: any,
-    _rp: any,
-    reqOpt: any,
-    _returnsKw: any,
-    returnList: any,
-    ensOpt: any,
-    usesOpt: any,
-    bodyNode: any,
-  ) {
-    const funName = name.sourceString;
-
-    const parameters =
-      paramsOpt.children.length === 0
-        ? []
-        : (paramsOpt.parse() as FunnierFunctionDef['parameters']);
-
-    const returns =
-      returnList.parse() as FunnierFunctionDef['returns'];
-
-    const locals =
-      usesOpt.children.length === 0
-        ? []
-        : (usesOpt.parse() as FunnierFunctionDef['locals']);
-
-    // По спецификации Funny:
-    //   requires отсутствует → true
-    //   ensures  отсутствует → false
-
-    let requires: FunnierPredicate;
-    if (reqOpt.children.length === 0) {
-      requires = { type: 'bool', value: true };
-    } else {
-      const seq = reqOpt.children[0];
-      const predNode = seq.children[1];
-      requires = predNode.parse() as FunnierPredicate;
-    }
-
-    let ensures: FunnierPredicate;
-    if (ensOpt.children.length === 0) {
-      ensures = { type: 'bool', value: false };
-    } else {
-      const seq = ensOpt.children[0];
-      const predNode = seq.children[1];
-      ensures = predNode.parse() as FunnierPredicate;
-    }
-
-    const body = bodyNode.parse() as FunnierStatement;
-
+  FunctionDef(name: NonterminalNode, lp: TerminalNode, paramsIter: IterationNode, rp: TerminalNode, reqTokIter: IterationNode, reqPredIter: IterationNode, returnsKw: TerminalNode,
+    returnListNode: NonterminalNode, ensTokIter: IterationNode, ensPredIter: IterationNode, usesTokIter: IterationNode, usesListIter: IterationNode,bodyNode: NonterminalNode) {
+    const parameters = paramsIter.children.length === 0 ? [] : paramsIter.parse();
+    const returns = returnListNode.parse();
+    const locals = usesListIter.children.length === 0 ? [] : usesListIter.parse();
     const f: FunnierFunctionDef = {
       type: 'function',
-      name: funName,
-      parameters,
-      returns,
-      locals,
-      requires,
-      ensures,
-      body,
+      name: name.sourceString,
+      parameters: parameters,
+      returns: returns,
+      locals: locals,
+      requires: reqPredIter.parse(),
+      ensures: ensPredIter.parse(),
+      body: bodyNode.parse(),
     };
 
     return f;
   },
 
-  // Loop :=
-  //   "while" "(" Condition ")"
-  //   ("invariant" Predicate)?
-  //   Statement
-  Loop(_whileTok: any, _lp: any, condNode: any, _rp: any, invOpt: any, bodyNode: any) {
-    const condition = condNode.parse();
-
-    let invariant: FunnierPredicate;
-    if (invOpt.children.length === 0) {
-      // по спецификации: если invariant опущен, считаем true
+  Loop(whileTok: TerminalNode,lp: TerminalNode,condNode: NonterminalNode,rp: TerminalNode,invTokIter: IterationNode,   invPredIter: IterationNode, bodyNode: NonterminalNode) {
+    const invParsed = invPredIter.parse();
+    let invariant;
+    if (invParsed === undefined) {
       invariant = { type: 'bool', value: true };
     } else {
-      const seq = invOpt.children[0];
-      const predNode = seq.children[1];
-      invariant = predNode.parse() as FunnierPredicate;
+      invariant = invParsed;
     }
-
-    const body = bodyNode.parse() as FunnierStatement;
 
     const loop: LoopStmtWithInvariant = {
       type: 'while',
-      condition,
+      condition: condNode.parse(),
       invariant,
-      body,
+      body: bodyNode.parse(),
     };
     return loop;
   },
 
-  // PredAtom :=
-  //   ...
-  //   | FormulaRef   --formulaCall
-  PredAtom_formulaCall(node: any) {
-    return node.parse(); // FormulaRef
+  PredAtom_formulaCall(node: NonterminalNode) {
+    return node.parse(); 
   },
 
-  // FormulaRef =
-  //   variable "(" ArgList? ")"
-  FormulaRef(name: any, _lp: any, argsOpt: any, _rp: any) {
-    const fname = name.sourceString;
-    const args =
-      argsOpt.children.length === 0
-        ? []
-        : (argsOpt.children[0].parse() as FunnierFormulaRef['args']);
-
+  FormulaRef(name: NonterminalNode,lp: TerminalNode,argsIter: IterationNode,rp: TerminalNode,) {
+    const args = argsIter.children.length === 0 ? [] : argsIter.parse();
     const ref: FunnierFormulaRef = {
       type: 'formulaRef',
-      name: fname,
-      args,
+      name: name.sourceString,
+      args : args,
     };
     return ref;
   },
-};
+} satisfies FunnierActionDict<any>;
 
-// --------- semantics + внешний API ---------
-
-export const semantics: FunnySemanticsExt =
-  grammar.Funnier.createSemantics() as FunnySemanticsExt;
+export const semantics: FunnySemanticsExt = grammar.Funnier.createSemantics() as FunnySemanticsExt;
 
 semantics.addOperation('parse()', getFunnierAst as any);
 
@@ -217,7 +124,6 @@ export function parseFunnier(source: string, origin?: string): AnnotatedModule {
     throw new SyntaxError(match.message);
   }
 
-  const mod = semantics(match).parse() as AnnotatedModule;
+  const mod = semantics(match).parse();
   return mod;
-  
 }

@@ -32,8 +32,14 @@ export type Statement =
   Assignment
   | ConditionalStmt
   | LoopStmt
-  | BlockStmt;
+  | BlockStmt
+  | CallStatement
 
+
+export interface CallStatement {
+  type: "callStmt";
+  call: FunctionCall;  
+}
 
 export type Assignment =
   AssignStmt
