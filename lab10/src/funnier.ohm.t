@@ -16,11 +16,15 @@ Funnier <: Funny {
         ("uses" LocalParamDefList)?     
         Statement
 
+    // ReturnList := "void" --void
+    // | ReturnParamDef ("," ReturnParamDef)* --params
+
 
     Loop := "while" "(" Condition ")"
         ("invariant" Predicate)?  
         Statement
 
+   
 
     // предикаты теперь могут вызывать формулы
     PredAtom
