@@ -26,14 +26,8 @@ Funnier <: Funny {
 
    
 
-    // предикаты теперь могут вызывать формулы
     PredAtom
-        := Quantifier                --quantifier
-        | "true"                    --true
-        | "false"                   --false
-        | Comparison                --comp
-        | "(" Predicate ")"         --paren
-        |  FormulaRef   --formulaCall
+        := ... |  FormulaRef   --formulaCall
 
     FormulaRef = variable 
     "(" ArgList? ")"
